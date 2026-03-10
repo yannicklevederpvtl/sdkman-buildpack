@@ -11,9 +11,16 @@ BUILD_DIR="${4:?Missing BUILD_DIR}"
 INSTALL_DIR="${DEPS_DIR}/${INDEX}/sdkman"
 mkdir -p "${INSTALL_DIR}"
 
-SDKMAN_YML="${BUILD_DIR}/sdkman.yml"
-if [ ! -f "${SDKMAN_YML}" ]; then
-  echo "SDKMAN buildpack: sdkman.yml not found, skipping."
+# Find sdkman.yml: BUILD_DIR is standard; some platforms use different paths for the first buildpack
+SDKMAN_YML=""
+for candidate in "${BUILD_DIR}/sdkman.yml" "$(pwd)/sdkman.yml" "/tmp/app/sdkman.yml" "./sdkman.yml"; do
+  if [ -f "${candidate}" ]; then
+    SDKMAN_YML="${candidate}"
+    break
+  fi
+done
+if [ -z "${SDKMAN_YML}" ] || [ ! -f "${SDKMAN_YML}" ]; then
+  echo "SDKMAN buildpack: sdkman.yml not found (BUILD_DIR=${BUILD_DIR}), skipping."
   exit 0
 fi
 
