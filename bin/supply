@@ -45,12 +45,13 @@ ENVSCRIPT
 fi
 
 # Install SDKMAN in CI mode (non-interactive, no shell config changes)
-# Remove any partial/cached install so we get a fresh SDKMAN and sdkman-init.sh
+# Remove any partial/cached install; do not create INSTALL_DIR so the installer does a full install
 rm -rf "${INSTALL_DIR}"
-mkdir -p "${INSTALL_DIR}"
 export SDKMAN_DIR="${INSTALL_DIR}"
 echo "-----> Installing SDKMAN to ${SDKMAN_DIR}"
 curl -s "https://get.sdkman.io?ci=true&rcupdate=false" | bash
+# Ensure dir exists after installer (installer creates it)
+mkdir -p "${INSTALL_DIR}"
 
 # Load SDKMAN so we can run sdk install
 # shellcheck source=/dev/null
