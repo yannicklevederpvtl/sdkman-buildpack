@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Cloud Foundry buildpack v3 supply: install SDKMAN and requested SDKs (Java, Kotlin).
-# Args: INDEX DEPS_DIR CACHE_DIR BUILD_DIR
+# Args: BUILD_DIR CACHE_DIR DEPS_DIR INDEX (CF standard order)
 # Output: dependencies under DEPS_DIR/INDEX/sdkman; write sdkman-env.sh for runtime.
 set -e
-INDEX="${1:?Missing INDEX}"
-DEPS_DIR="${2:?Missing DEPS_DIR}"
-CACHE_DIR="${3:?Missing CACHE_DIR}"
-BUILD_DIR="${4:?Missing BUILD_DIR}"
+BUILD_DIR="${1:?Missing BUILD_DIR}"
+CACHE_DIR="${2:?Missing CACHE_DIR}"
+DEPS_DIR="${3:?Missing DEPS_DIR}"
+INDEX="${4:?Missing INDEX}"
 
 INSTALL_DIR="${DEPS_DIR}/${INDEX}/sdkman"
 mkdir -p "${INSTALL_DIR}"
