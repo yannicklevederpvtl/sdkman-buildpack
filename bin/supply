@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Cloud Foundry buildpack v3 supply: install SDKMAN and requested SDKs (Java, Kotlin).
+# Args: INDEX DEPS_DIR CACHE_DIR BUILD_DIR
+# Output: dependencies under DEPS_DIR/INDEX/sdkman; write sdkman-env.sh for runtime.
+set -e
+INDEX="${1:?Missing INDEX}"
+DEPS_DIR="${2:?Missing DEPS_DIR}"
+CACHE_DIR="${3:?Missing CACHE_DIR}"
+BUILD_DIR="${4:?Missing BUILD_DIR}"
+
+INSTALL_DIR="${DEPS_DIR}/${INDEX}/sdkman"
+mkdir -p "${INSTALL_DIR}"
+
+SDKMAN_YML="${BUILD_DIR}/sdkman.yml"
+if [ ! -f "${SDKMAN_YML}" ]; then
+  echo "SDKMAN buildpack: sdkman.yml not found, skipping."
+  exit 0
+fi
+
+# Parse a key from sdkman.yml (simple YAML: key: value or key: "value")
+get_sdk_version() {
+  local key="$1"
+  grep -E "^${key}:" "${SDKMAN_YML}" 2>/dev/null | head -1 | sed -E 's/^[^:]+:[[:space:]]*["]?([^"#]+)["]?.*/\1/' | tr -d ' '
+}
+
+JAVA_VER=$(get_sdk_version java)
+KOTLIN_VER=$(get_sdk_version kotlin)
+
+if [ -z "${JAVA_VER}" ] && [ -z "${KOTLIN_VER}" ]; then
+  echo "SDKMAN buildpack: no java or kotlin in sdkman.yml, skipping install."
+  cat > "${INSTALL_DIR}/sdkman-env.sh" << 'ENVSCRIPT'
+#!/usr/bin/env bash
+# No SDKs requested; no-op.
+true
+ENVSCRIPT
+  chmod +x "${INSTALL_DIR}/sdkman-env.sh"
+  exit 0
+fi
+
+# Install SDKMAN in CI mode (non-interactive, no shell config changes)
+export SDKMAN_DIR="${INSTALL_DIR}"
+echo "-----> Installing SDKMAN to ${SDKMAN_DIR}"
+curl -s "https://get.sdkman.io?ci=true&rcupdate=false" | bash
+
+# Load SDKMAN so we can run sdk install
+# shellcheck source=/dev/null
+set +e
+source "${SDKMAN_DIR}/bin/sdkman-init.sh"
+set -e
+if ! type sdk &>/dev/null; then
+  echo "ERROR: SDKMAN init failed (sdk command not found)"
+  exit 1
+fi
+
+# Unset any system JAVA_HOME so SDKMAN's install is used
+unset JAVA_HOME
+
+if [ -n "${JAVA_VER}" ]; then
+  echo "-----> Installing Java ${JAVA_VER}"
+  sdk install java "${JAVA_VER}"
+  sdk use java "${JAVA_VER}"
+fi
+
+if [ -n "${KOTLIN_VER}" ]; then
+  echo "-----> Installing Kotlin ${KOTLIN_VER}"
+  sdk install kotlin "${KOTLIN_VER}"
+  sdk use kotlin "${KOTLIN_VER}"
+fi
+
+# Write runtime env script: app sources this at startup to get JAVA_HOME and PATH.
+# Use script directory as SDKMAN_DIR so it works regardless of runtime path.
+cat > "${INSTALL_DIR}/sdkman-env.sh" << 'ENVSCRIPT'
+#!/usr/bin/env bash
+# Sourced by the app at startup to set JAVA_HOME and PATH for SDKMAN-installed runtimes.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+export SDKMAN_DIR="${SCRIPT_DIR}"
+if [ -d "${SDKMAN_DIR}/candidates/java/current" ]; then
+  export JAVA_HOME="${SDKMAN_DIR}/candidates/java/current"
+  export PATH="${JAVA_HOME}/bin:${PATH:-}"
+fi
+if [ -d "${SDKMAN_DIR}/candidates/kotlin/current/bin" ]; then
+  export PATH="${SDKMAN_DIR}/candidates/kotlin/current/bin:${PATH:-}"
+fi
+ENVSCRIPT
+chmod +x "${INSTALL_DIR}/sdkman-env.sh"
+
+echo "SDKMAN buildpack supply complete. Install dir: ${INSTALL_DIR}"

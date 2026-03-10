@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Cloud Foundry buildpack v3 detect: pass when the app opts in with sdkman.yml
+set -e
+BUILD_DIR="${1:?Missing BUILD_DIR}"
+if [ -f "${BUILD_DIR}/sdkman.yml" ]; then
+  exit 0
+fi
+exit 1

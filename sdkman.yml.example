@@ -1,0 +1,4 @@
+---
+# Copy to your app root as sdkman.yml. Pinned versions recommended for reproducible builds.
+java: 17.0.9-tem
+# kotlin: "1.9.0"
